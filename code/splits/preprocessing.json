@@ -1,0 +1,18 @@
+{
+  "seed": 42,
+  "image_root": "C:\\Users\\Nadhish SN\\Desktop\\Project-1\\cxr_fusion\\Dataset",
+  "means": {
+    "heart_rate": 89.16483516483517,
+    "spo2": 96.83985704560926,
+    "sbp": 120.84553986616761,
+    "dbp": 62.54675402025015,
+    "age_at_imaging": 64.07642771212228
+  },
+  "stds": {
+    "heart_rate": 18.63743413804841,
+    "spo2": 3.2680260287735523,
+    "sbp": 22.977433512626963,
+    "dbp": 14.845699975679064,
+    "age_at_imaging": 16.308945478588136
+  }
+}

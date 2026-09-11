@@ -1,0 +1,48 @@
+{
+  "checkpoint": "C:\\Users\\Nadhish SN\\Desktop\\Project-1\\cxr_fusion\\code\\checkpoints\\best_model.pt",
+  "device": "cuda",
+  "num_rows": 2862,
+  "threshold": 0.5,
+  "labels": {
+    "Atelectasis": {
+      "positive_rate": 0.38155136268343814,
+      "accuracy": 0.6139063591893781,
+      "precision": 0.494869771112865,
+      "recall": 0.5741758241758241,
+      "f1": 0.5315811784654515,
+      "roc_auc": 0.653555389996068,
+      "average_precision": 0.4997717426822724
+    },
+    "Cardiomegaly": {
+      "positive_rate": 0.36303284416491965,
+      "accuracy": 0.5842068483577918,
+      "precision": 0.4434456928838951,
+      "recall": 0.5697786333012512,
+      "f1": 0.4987363100252738,
+      "roc_auc": 0.6130441049217649,
+      "average_precision": 0.4511165479281884
+    },
+    "Edema": {
+      "positive_rate": 0.3312368972746331,
+      "accuracy": 0.6369671558350803,
+      "precision": 0.4688995215311005,
+      "recall": 0.7236286919831224,
+      "f1": 0.5690584819576939,
+      "roc_auc": 0.7217184944160064,
+      "average_precision": 0.5377344787800045
+    },
+    "Pneumonia": {
+      "positive_rate": 0.2379454926624738,
+      "accuracy": 0.6020265548567435,
+      "precision": 0.32598784194528874,
+      "recall": 0.6299559471365639,
+      "f1": 0.4296444667000501,
+      "roc_auc": 0.6485304603029367,
+      "average_precision": 0.3466452470320336
+    }
+  },
+  "macro_roc_auc": 0.659212112409194,
+  "macro_average_precision": 0.4588170041056247,
+  "macro_f1": 0.5072551092871174,
+  "micro_f1": 0.5106662290777815
+}

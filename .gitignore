@@ -1,0 +1,13 @@
+# Virtual environment
+.venv/
+
+# Dataset
+Dataset/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Model checkpoints
+code/checkpoints/
+*.pt
