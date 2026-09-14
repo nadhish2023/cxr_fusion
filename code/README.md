@@ -1,10 +1,138 @@
-# Multimodal CXR Fusion
+# CXR Fusion Baseline Progress
 
-This project combines chest X-ray images with ICU tabular data to predict Atelectasis, Cardiomegaly, Edema, and Pneumonia. The image branch uses ImageNet-pretrained ResNet-50, the tabular branch uses an MLP, and learned gated fusion combines their 256-dimensional representations.
+This project predicts four chest X-ray findings from MIMIC-CXR images and ICU clinical data:
 
-## Installation
+`Atelectasis`, `Cardiomegaly`, `Edema`, and `Pneumonia`.
 
-From the `cxr_fusion` project root:
+The baseline suite establishes image-only and clinical-only reference points before comparing them with the multimodal gated-fusion model.
+
+## Current Results
+
+The table below is generated from the latest `metrics/baseline_metrics.json` report.
+
+Evaluation set: **2,862 test rows**
+
+Decision threshold: **0.5**
+
+Device: **CUDA**
+Split policy: **subject-disjoint train/validation/test splits**
+
+| Rank | Baseline | Input | Macro ROC-AUC | Macro AP | Macro F1 | Micro F1 |
+|---:|---|---|---:|---:|---:|---:|
+| 1 | ConvNeXt Tiny | Image | **0.7096** | **0.5203** | **0.5546** | **0.5663** |
+| 2 | ResNet-50 | Image | 0.6927 | 0.4950 | 0.5418 | 0.5464 |
+| 3 | DenseNet-121 | Image | 0.6865 | 0.4936 | 0.5366 | 0.5419 |
+| 4 | EfficientNetB3 | Image | 0.6908 | 0.4890 | 0.5435 | 0.5474 |
+| 5 | Logistic Regression | Clinical | 0.5397 | 0.3594 | 0.4285 | 0.4347 |
+| 6 | MLP | Clinical | 0.5378 | 0.3584 | **0.4422** | **0.4451** |
+| 7 | XGBoost | Clinical | 0.5288 | 0.3523 | 0.4072 | 0.4133 |
+| 8 | Random Forest | Clinical | 0.5204 | 0.3428 | 0.3410 | 0.3522 |
+
+**Metric key:** AP = Average Precision. Higher is better for every metric shown.
+
+## Pathology-Level ROC-AUC
+
+| Baseline | Atelectasis | Cardiomegaly | Edema | Pneumonia |
+|---|---:|---:|---:|---:|
+| ConvNeXt Tiny | **0.7136** | **0.6748** | **0.7610** | **0.6889** |
+| ResNet-50 | 0.6986 | 0.6456 | 0.7516 | 0.6750 |
+| DenseNet-121 | 0.6788 | 0.6547 | 0.7449 | 0.6676 |
+| EfficientNetB3 | 0.6965 | 0.6614 | 0.7325 | 0.6728 |
+| Logistic Regression | 0.5055 | 0.5416 | 0.5729 | 0.5387 |
+| MLP | 0.4960 | 0.5420 | 0.5709 | 0.5424 |
+| XGBoost | 0.4885 | 0.5359 | 0.5574 | 0.5334 |
+| Random Forest | 0.4880 | 0.5239 | 0.5363 | 0.5332 |
+
+## Progress Summary
+
+- **Best image baseline:** ConvNeXt Tiny, with macro ROC-AUC `0.7096`.
+- **Best clinical ranking model:** Logistic Regression, with macro ROC-AUC `0.5397`.
+- **Best clinical thresholded classification:** MLP, with macro F1 `0.4422` and micro F1 `0.4451`.
+- **Most visually difficult finding:** Pneumonia has the lowest image-baseline ROC-AUC range.
+- **Strongest image finding:** Edema is highest across the image models, reaching `0.7610` with ConvNeXt Tiny.
+- The image-only models substantially outperform the clinical-only models on ranking metrics. Clinical features remain important comparison points for testing whether gated fusion adds complementary information.
+
+These results are baseline references, not final claims. Model selection and conclusions should use a held-out test set, confidence intervals or repeated splits where possible, and subgroup analysis from the clinical audit.
+
+## Reproduce The Results
+
+Run from `cxr_fusion/code`.
+
+### Prepare data
+
+```powershell
+python data_prep.py
+python sanity_checks.py --branch image
+python sanity_checks.py --branch tabular
+```
+
+### Train image baselines
+
+```powershell
+python train_baseline_resnet.py
+python train_baseline_densenet.py
+python train_baseline_efficientnetb3.py
+python train_baseline_convnext_tiny.py
+```
+
+Image baselines require CUDA and use ImageNet-pretrained backbones.
+
+### Train clinical baselines
+
+```powershell
+python train_baseline_mlp.py
+python train_baseline_tree.py --model all
+```
+
+The classical trainer produces Logistic Regression, Random Forest, and XGBoost checkpoints.
+
+### Evaluate
+
+```powershell
+python evaluate_baselines.py --model image_models
+python evaluate_baselines.py --model clinical_models
+python evaluate_baselines.py --model all
+```
+
+The complete report is written to `metrics/baseline_metrics.json`. Checkpoints are stored under `checkpoints/baselines/`.
+
+## Model Inventory
+
+| Model | Type | Checkpoint |
+|---|---|---|
+| ResNet-50 | Image neural baseline | `checkpoints/baselines/baseline_resnet.pt` |
+| DenseNet-121 | Image neural baseline | `checkpoints/baselines/baseline_densenet.pt` |
+| EfficientNetB3 | Image neural baseline | `checkpoints/baselines/baseline_efficientnetb3.pt` |
+| ConvNeXt Tiny | Image neural baseline | `checkpoints/baselines/baseline_convnext_tiny.pt` |
+| MLP | Clinical neural baseline | `checkpoints/baselines/baseline_mlp.pt` |
+| Logistic Regression | Clinical linear baseline | `checkpoints/baselines/baseline_logistic_regression.joblib` |
+| Random Forest | Clinical tree baseline | `checkpoints/baselines/baseline_random_forest.joblib` |
+| XGBoost | Clinical boosting baseline | `checkpoints/baselines/baseline_xgboost.joblib` |
+
+## Project Configuration
+
+Edit `config.py` when using a new machine:
+
+```python
+CSV_PATH = "C:/path/to/cxr_fusion/Final_Dataset.csv"
+IMAGE_ROOT = "C:/path/to/cxr_fusion/Dataset"
+```
+
+The dataset uses ImageNet normalization, prepared clinical features, clipped vital signs, and training-only preprocessing statistics. `NUM_WORKERS=0` is intentional for Windows stability.
+
+## Clinical Audit
+
+Run:
+
+```powershell
+python clinical_data_audit.py
+```
+
+The audit writes `metrics/clinical_data_audit.json` and reports row counts, subject counts, missingness, demographic summaries, label prevalence, and split-level quality signals. Warnings are screening signals, not proof of discrimination or causality.
+
+## Dependencies
+
+Install from the project root:
 
 ```powershell
 python -m venv .venv
@@ -13,113 +141,4 @@ python -m pip install --upgrade pip
 pip install -r .\code\requirements.txt
 ```
 
-Install a CUDA-enabled PyTorch build appropriate for your NVIDIA driver if the default PyTorch install is CPU-only. Training intentionally stops when CUDA is unavailable. Evaluation can run on CPU.
-
-## Configuration
-
-Open `config.py` and edit only these two paths:
-
-```python
-CSV_PATH = "C:/path/to/cxr_fusion/Final_Dataset.csv"
-IMAGE_ROOT = "C:/path/to/cxr_fusion/Dataset"
-```
-
-Use forward slashes in Windows paths. `NUM_WORKERS=0` is intentional for Windows stability.
-
-## Dataset layout
-
-`Final_Dataset.csv` must be at the project root, and `Dataset/` must contain the complete image tree:
-
-```text
-cxr_fusion/
-  Final_Dataset.csv
-  Dataset/p10/p10002428/s123/image.jpg
-  code/
-```
-
-The matching CSV value is `p10/p10002428/s123/image.jpg`, relative to `Dataset/`. Required columns are `subject_id`, `image_path`, the four labels, `heart_rate`, `spo2`, `sbp`, `dbp`, `gender`, and `age_at_imaging`.
-
-## Commands
-
-Run from `cxr_fusion/code` in this order:
-
-```powershell
-python data_prep.py
-python sanity_checks.py --branch image
-python sanity_checks.py --branch tabular
-python train.py
-python evaluate.py
-```
-
-## Clinical data statistics and bias screening
-
-Run the descriptive audit from `cxr_fusion/code`:
-
-```powershell
-python clinical_data_audit.py
-```
-
-The script prints row and subject counts, vital-sign and age summaries, missingness, gender counts, label prevalence, and heuristic dataset-quality/bias signals. It also compares label prevalence across train/validation/test splits and writes the full report to `metrics/clinical_data_audit.json`.
-
-Warnings are screening signals, not proof of discrimination or causal bias. Review group sizes, label quality, clinical context, and model performance by subgroup before drawing conclusions.
-
-## Baseline models
-
-The project also includes independent baselines for comparison with gated fusion. All use the same subject-disjoint splits, labels, preprocessing, class-weighted BCE loss, and early stopping.
-
-From `cxr_fusion/code`:
-
-```powershell
-python train_baseline_resnet.py
-python train_baseline_densenet.py
-python train_baseline_efficientnetb3.py
-python train_baseline_convnext_tiny.py
-python train_baseline_mlp.py
-python train_baseline_tree.py --model all
-python evaluate_baselines.py --model all
-```
-
-`train_baseline_resnet.py` trains an ImageNet-pretrained ResNet-50 using only images. `train_baseline_densenet.py` independently trains an ImageNet-pretrained DenseNet-121 using only images. `train_baseline_efficientnetb3.py` trains an ImageNet-pretrained EfficientNetB3 using only images. `train_baseline_convnext_tiny.py` trains an ImageNet-pretrained ConvNeXt Tiny using only images. All image baselines require CUDA. `train_baseline_mlp.py` trains a neural MLP using only the prepared clinical features. `train_baseline_tree.py` trains Logistic Regression, Random Forest, and XGBoost baselines using only clinical features. Checkpoints are saved under `checkpoints/baselines/`, and comparable metrics are saved to `metrics/baseline_metrics.json`.
-
-To compare all four image architectures:
-
-```powershell
-python train_baseline_resnet.py
-python train_baseline_densenet.py
-python train_baseline_efficientnetb3.py
-python train_baseline_convnext_tiny.py
-python evaluate_baselines.py --model image_models
-```
-
-To evaluate only one baseline:
-
-```powershell
-python evaluate_baselines.py --model image
-python evaluate_baselines.py --model densenet
-python evaluate_baselines.py --model efficientnetb3
-python evaluate_baselines.py --model convnext_tiny
-python evaluate_baselines.py --model clinical
-```
-
-To evaluate the clinical baselines:
-
-```powershell
-python evaluate_baselines.py --model clinical_models
-```
-
-To train only the logistic regression baseline:
-
-```powershell
-python train_baseline_tree.py --model logistic_regression
-python evaluate_baselines.py --model logistic_regression
-```
-
-`data_prep.py` validates every referenced image, converts labels as requested, clips vital signs, creates subject-disjoint 70/15/15 splits with seed 42, and fits imputation/standardization statistics on training rows only. It writes split CSVs and preprocessing metadata under `splits/`. The best checkpoint is `checkpoints/best_model.pt`; test metrics and probabilities are written under `metrics/`.
-
-## Common errors
-
-- **CSV file not found:** update `CSV_PATH` and confirm the file is named `Final_Dataset.csv`.
-- **Image root not found or missing image files:** update `IMAGE_ROOT`; every `image_path` must resolve beneath that folder.
-- **Missing required columns:** add the required CSV columns listed above.
-- **Split files are missing:** run `python data_prep.py` first.
-- **CUDA is unavailable during training:** install a CUDA-enabled PyTorch build, verify your NVIDIA driver and GPU, then rerun `python train.py`. CPU evaluation remains supported.
+Use a CUDA-enabled PyTorch build appropriate for the installed NVIDIA driver for image and multimodal training. Evaluation can run on CPU, although the current metrics report was generated on CUDA.
