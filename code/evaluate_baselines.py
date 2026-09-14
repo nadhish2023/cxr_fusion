@@ -1,6 +1,7 @@
 import argparse
 import json
 
+import joblib
 import numpy as np
 import torch
 from sklearn.metrics import (
@@ -21,7 +22,31 @@ from dataset import CXRDataset
 BASELINE_DIR = config.CHECKPOINT_DIR / "baselines"
 
 
+CLASSICAL_CLINICAL_MODELS = ["logistic_regression", "random_forest", "xgboost"]
+
+
+def collect_tree_predictions(model_name, checkpoint_path):
+    checkpoint = joblib.load(checkpoint_path)
+    dataset = CXRDataset(config.SPLIT_DIR / "test.csv")
+    rows = dataset.rows
+    features = rows[checkpoint["feature_columns"]].to_numpy(dtype="float32")
+    labels = rows[config.LABEL_COLUMNS].to_numpy(dtype="int32")
+    model = checkpoint["model"]
+
+    if model_name in ["logistic_regression", "random_forest"]:
+        probabilities = model.predict_proba(features)
+    else:
+        probabilities = np.column_stack(
+            [estimator.predict_proba(features)[:, 1] for estimator in model]
+        )
+
+    return labels, probabilities
+
+
 def collect_predictions(model_name, checkpoint_path, device):
+    if model_name in CLASSICAL_CLINICAL_MODELS:
+        return collect_tree_predictions(model_name, checkpoint_path)
+
     checkpoint = torch.load(checkpoint_path, map_location=device)
 
     dataset = CXRDataset(config.SPLIT_DIR / "test.csv")
@@ -199,14 +224,19 @@ def main():
             "densenet",
             "efficientnetb3",
             "convnext_tiny",
+            "logistic_regression",
+            "random_forest",
+            "xgboost",
             "clinical",
             "all",
             "image_models",
+            "clinical_models",
         ],
         default="all",
         help=(
             "Which baseline to evaluate. "
-            "'image_models' evaluates all image-based models."
+            "'image_models' evaluates image models; "
+            "'clinical_models' evaluates clinical baselines."
         ),
     )
 
@@ -227,6 +257,9 @@ def main():
             "efficientnetb3",
             "convnext_tiny",
             "clinical",
+            "logistic_regression",
+            "random_forest",
+            "xgboost",
         ]
 
     elif args.model == "image_models":
@@ -235,6 +268,14 @@ def main():
             "densenet",
             "efficientnetb3",
             "convnext_tiny",
+        ]
+
+    elif args.model == "clinical_models":
+        models = [
+            "clinical",
+            "logistic_regression",
+            "random_forest",
+            "xgboost",
         ]
 
     else:
@@ -256,6 +297,9 @@ def main():
         "efficientnetb3": "baseline_efficientnetb3.pt",
         "convnext_tiny": "baseline_convnext_tiny.pt",
         "clinical": "baseline_mlp.pt",
+        "logistic_regression": "baseline_logistic_regression.joblib",
+        "random_forest": "baseline_random_forest.joblib",
+        "xgboost": "baseline_xgboost.joblib",
     }
 
     model_descriptions = {
@@ -264,6 +308,9 @@ def main():
         "efficientnetb3": "EfficientNetB3",
         "convnext_tiny": "ConvNeXt Tiny",
         "clinical": "MLP (Clinical)",
+        "logistic_regression": "Logistic Regression (Clinical)",
+        "random_forest": "Random Forest (Clinical)",
+        "xgboost": "XGBoost (Clinical)",
     }
 
     all_results = {

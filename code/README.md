@@ -75,10 +75,11 @@ python train_baseline_densenet.py
 python train_baseline_efficientnetb3.py
 python train_baseline_convnext_tiny.py
 python train_baseline_mlp.py
+python train_baseline_tree.py --model all
 python evaluate_baselines.py --model all
 ```
 
-`train_baseline_resnet.py` trains an ImageNet-pretrained ResNet-50 using only images. `train_baseline_densenet.py` independently trains an ImageNet-pretrained DenseNet-121 using only images. `train_baseline_efficientnetb3.py` trains an ImageNet-pretrained EfficientNetB3 using only images. `train_baseline_convnext_tiny.py` trains an ImageNet-pretrained ConvNeXt Tiny using only images. All image baselines require CUDA. `train_baseline_mlp.py` trains an MLP using only the prepared clinical features and works on CPU or CUDA. Checkpoints are saved under `checkpoints/baselines/`, and comparable metrics are saved to `metrics/baseline_metrics.json`.
+`train_baseline_resnet.py` trains an ImageNet-pretrained ResNet-50 using only images. `train_baseline_densenet.py` independently trains an ImageNet-pretrained DenseNet-121 using only images. `train_baseline_efficientnetb3.py` trains an ImageNet-pretrained EfficientNetB3 using only images. `train_baseline_convnext_tiny.py` trains an ImageNet-pretrained ConvNeXt Tiny using only images. All image baselines require CUDA. `train_baseline_mlp.py` trains a neural MLP using only the prepared clinical features. `train_baseline_tree.py` trains Logistic Regression, Random Forest, and XGBoost baselines using only clinical features. Checkpoints are saved under `checkpoints/baselines/`, and comparable metrics are saved to `metrics/baseline_metrics.json`.
 
 To compare all four image architectures:
 
@@ -98,6 +99,19 @@ python evaluate_baselines.py --model densenet
 python evaluate_baselines.py --model efficientnetb3
 python evaluate_baselines.py --model convnext_tiny
 python evaluate_baselines.py --model clinical
+```
+
+To evaluate the clinical baselines:
+
+```powershell
+python evaluate_baselines.py --model clinical_models
+```
+
+To train only the logistic regression baseline:
+
+```powershell
+python train_baseline_tree.py --model logistic_regression
+python evaluate_baselines.py --model logistic_regression
 ```
 
 `data_prep.py` validates every referenced image, converts labels as requested, clips vital signs, creates subject-disjoint 70/15/15 splits with seed 42, and fits imputation/standardization statistics on training rows only. It writes split CSVs and preprocessing metadata under `splits/`. The best checkpoint is `checkpoints/best_model.pt`; test metrics and probabilities are written under `metrics/`.
