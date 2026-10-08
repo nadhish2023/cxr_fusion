@@ -1,0 +1,90 @@
+{
+  "checkpoint": "C:\\Users\\Nadhish SN\\Desktop\\Project-1\\cxr_fusion\\main_model\\outputs\\checkpoints\\best_model_convnext_fusion.pt",
+  "device": "cuda",
+  "threshold_selection": "validation_only",
+  "thresholds": {
+    "Atelectasis": 0.05,
+    "Cardiomegaly": 0.09999999999999999,
+    "Edema": 0.3499999999999999,
+    "Pneumonia": 0.25999999999999995
+  },
+  "validation": {
+    "Atelectasis": {
+      "threshold": 0.05,
+      "accuracy": 0.9766187050359713,
+      "precision": 0.9766187050359713,
+      "recall": 1.0,
+      "f1": 0.9881710646041856,
+      "roc_auc": 0.8030882561269301,
+      "average_precision": 0.9931679197542612
+    },
+    "Cardiomegaly": {
+      "threshold": 0.09999999999999999,
+      "accuracy": 0.8358012504113195,
+      "precision": 0.8440238345601122,
+      "recall": 0.9780666125101544,
+      "f1": 0.9061147695202257,
+      "roc_auc": 0.8290979561782773,
+      "average_precision": 0.9500655392456002
+    },
+    "Edema": {
+      "threshold": 0.3499999999999999,
+      "accuracy": 0.8240706661759293,
+      "precision": 0.843287391526289,
+      "recall": 0.9061985737794843,
+      "f1": 0.8736118455843469,
+      "roc_auc": 0.8749510664747367,
+      "average_precision": 0.9288654226290582
+    },
+    "Pneumonia": {
+      "threshold": 0.25999999999999995,
+      "accuracy": 0.7002652519893899,
+      "precision": 0.6775599128540305,
+      "recall": 0.9353383458646617,
+      "f1": 0.7858496525584333,
+      "roc_auc": 0.7803026880505985,
+      "average_precision": 0.8266055816477835
+    }
+  },
+  "test": {
+    "Atelectasis": {
+      "threshold": 0.05,
+      "accuracy": 0.9768500948766603,
+      "precision": 0.9768500948766603,
+      "recall": 1.0,
+      "f1": 0.9882894989441352,
+      "roc_auc": 0.7541047295145655,
+      "average_precision": 0.9903611802218351
+    },
+    "Cardiomegaly": {
+      "threshold": 0.09999999999999999,
+      "accuracy": 0.8352234823215477,
+      "precision": 0.8430540827147401,
+      "recall": 0.9794661190965093,
+      "f1": 0.9061550151975684,
+      "roc_auc": 0.8338732443167105,
+      "average_precision": 0.9525394793080255
+    },
+    "Edema": {
+      "threshold": 0.3499999999999999,
+      "accuracy": 0.8100331980818886,
+      "precision": 0.838676844783715,
+      "recall": 0.8927410617551462,
+      "f1": 0.8648648648648649,
+      "roc_auc": 0.8652133342518427,
+      "average_precision": 0.9255264603559219
+    },
+    "Pneumonia": {
+      "threshold": 0.25999999999999995,
+      "accuracy": 0.6741186586414445,
+      "precision": 0.6485623003194888,
+      "recall": 0.925531914893617,
+      "f1": 0.7626800250469631,
+      "roc_auc": 0.7727316500647026,
+      "average_precision": 0.8009956218104082
+    }
+  },
+  "test_macro_roc_auc": 0.8064807395369553,
+  "test_macro_average_precision": 0.9173556854240477,
+  "test_macro_f1": 0.8804973510133829
+}

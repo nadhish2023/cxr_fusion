@@ -1,0 +1,31 @@
+{
+  "policy": "masked_definite",
+  "labels": {
+    "Atelectasis": {
+      "definite_negative": 455,
+      "definite_positive": 16897,
+      "uncertain": 2576,
+      "missing_or_invalid": 31306
+    },
+    "Cardiomegaly": {
+      "definite_negative": 4021,
+      "definite_positive": 16430,
+      "uncertain": 2343,
+      "missing_or_invalid": 28440
+    },
+    "Edema": {
+      "definite_negative": 5937,
+      "definite_positive": 11895,
+      "uncertain": 4294,
+      "missing_or_invalid": 29108
+    },
+    "Pneumonia": {
+      "definite_negative": 3193,
+      "definite_positive": 4461,
+      "uncertain": 3900,
+      "missing_or_invalid": 39680
+    },
+    "rows_removed_by_policy": 0,
+    "masked_label_values": 141647
+  }
+}

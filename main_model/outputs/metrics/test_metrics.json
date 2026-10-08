@@ -1,0 +1,30 @@
+{
+  "device": "cuda",
+  "num_rows": 7742,
+  "labels": {
+    "Atelectasis": {
+      "eligible_rows": 2635,
+      "positive_rate": 0.9768500924110413,
+      "roc_auc": 0.7541047295145655,
+      "average_precision": 0.9903611802218351
+    },
+    "Cardiomegaly": {
+      "eligible_rows": 2998,
+      "positive_rate": 0.8122081160545349,
+      "roc_auc": 0.8338732443167105,
+      "average_precision": 0.9525394793080255
+    },
+    "Edema": {
+      "eligible_rows": 2711,
+      "positive_rate": 0.6809295415878296,
+      "roc_auc": 0.8652133342518427,
+      "average_precision": 0.9255264603559219
+    },
+    "Pneumonia": {
+      "eligible_rows": 1163,
+      "positive_rate": 0.5657781362533569,
+      "roc_auc": 0.7727316500647026,
+      "average_precision": 0.8009956218104082
+    }
+  }
+}

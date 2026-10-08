@@ -1,13 +1,29 @@
 # Virtual environment
 .venv/
 
-# Dataset
+# Datasets
 Dataset/
+Final_Dataset.csv
 
 # Python cache
 __pycache__/
 *.pyc
 
-# Model checkpoints
-code/checkpoints/
+# Generated model artifacts
 *.pt
+*.joblib
+main_model/outputs/checkpoints/
+baselines/outputs/checkpoints/
+
+# Generated data artifacts
+main_model/outputs/splits/
+baselines/outputs/splits/
+code/metrics/
+code/splits/
+
+# Keep evaluation reports, predictions, and plots
+!main_model/outputs/metrics/
+!main_model/outputs/metrics/*.json
+!main_model/outputs/metrics/*.csv
+!main_model/outputs/metrics/plots/
+!main_model/outputs/metrics/plots/*.png
