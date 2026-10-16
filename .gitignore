@@ -27,3 +27,9 @@ code/splits/
 !main_model/outputs/metrics/*.csv
 !main_model/outputs/metrics/plots/
 !main_model/outputs/metrics/plots/*.png
+!baselines/outputs/
+!baselines/outputs/metrics/
+!baselines/outputs/metrics/*.json
+!baselines/outputs/metrics/*/
+!baselines/outputs/metrics/*/*.csv
+!baselines/outputs/metrics/*/*.png

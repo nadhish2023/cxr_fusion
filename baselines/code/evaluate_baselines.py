@@ -1,16 +1,24 @@
 import argparse
 import json
+from pathlib import Path
 
 import joblib
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
+    confusion_matrix,
     f1_score,
     precision_score,
     recall_score,
+    precision_recall_curve,
     roc_auc_score,
+    roc_curve,
 )
 from torch.utils.data import DataLoader
 
@@ -20,6 +28,17 @@ from main_model.code.dataset import CXRDataset
 
 
 BASELINE_DIR = config.BASELINE_CHECKPOINT_DIR
+METRICS_DIR = config.BASELINE_METRICS_DIR
+RESULT_STEMS = {
+    "clinical": "mlp",
+    "convnext_tiny": "convnext_tiny",
+    "image": "resnet",
+    "densenet": "densenet",
+    "efficientnetb3": "efficientnetb3",
+    "logistic_regression": "logistic_regression",
+    "random_forest": "random_forest",
+    "xgboost": "xgboost",
+}
 
 
 CLASSICAL_CLINICAL_MODELS = ["logistic_regression", "random_forest", "xgboost"]
@@ -102,24 +121,33 @@ def collect_predictions(model_name, checkpoint_path, device):
     return np.concatenate(labels), np.concatenate(probabilities)
 
 
-def evaluate(labels, probabilities):
+def evaluate(labels, probabilities, device=None):
     predictions = (probabilities >= 0.5).astype(np.int32)
 
     results = {
         "threshold": 0.5,
+        "device": str(device) if device is not None else None,
+        "num_rows": int(len(labels)),
         "labels": {},
     }
 
     roc_auc_values = []
     average_precision_values = []
+    f1_values = []
+    valid_labels = []
+    valid_predictions = []
 
     for index, label in enumerate(config.LABEL_COLUMNS):
-
-        truth = labels[:, index].astype(np.int32)
-        scores = probabilities[:, index]
-        predicted = predictions[:, index]
+        valid = np.isfinite(labels[:, index])
+        truth = labels[valid, index].astype(np.int32)
+        scores = probabilities[valid, index]
+        predicted = predictions[valid, index]
+        valid_labels.append(truth)
+        valid_predictions.append(predicted)
+        f1_values.append(f1_score(truth, predicted, zero_division=0))
 
         metrics = {
+            "valid_count": int(valid.sum()),
             "positive_rate": float(truth.mean()),
             "accuracy": float(
                 accuracy_score(truth, predicted)
@@ -186,26 +214,109 @@ def evaluate(labels, probabilities):
     )
 
     # Macro F1
+    flattened_labels = np.concatenate(valid_labels)
+    flattened_predictions = np.concatenate(valid_predictions)
     results["macro_f1"] = float(
-        f1_score(
-            labels,
-            predictions,
-            average="macro",
-            zero_division=0,
-        )
+        np.mean(f1_values)
     )
 
     # Micro F1
     results["micro_f1"] = float(
         f1_score(
-            labels,
-            predictions,
+            flattened_labels,
+            flattened_predictions,
             average="micro",
             zero_division=0,
         )
     )
 
     return results
+
+
+def save_detailed_outputs(model_name, labels, probabilities, results):
+    """Save model-specific metrics, predictions, and diagnostic plots."""
+    result_stem = RESULT_STEMS[model_name]
+    output_dir = METRICS_DIR / result_stem
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_path = METRICS_DIR / f"{result_stem}_baseline_results.json"
+    predictions_path = output_dir / f"{result_stem}_predictions.csv"
+
+    prediction_frame = pd.DataFrame(
+        labels,
+        columns=[f"{label}_label" for label in config.LABEL_COLUMNS],
+    )
+    probability_frame = pd.DataFrame(
+        probabilities,
+        columns=[f"{label}_probability" for label in config.LABEL_COLUMNS],
+    )
+    pd.concat([prediction_frame, probability_frame], axis=1).to_csv(
+        predictions_path,
+        index=False,
+    )
+
+    roc_figure, roc_axes = plt.subplots(2, 2, figsize=(12, 9))
+    pr_figure, pr_axes = plt.subplots(2, 2, figsize=(12, 9))
+    confusion_figure, confusion_axes = plt.subplots(2, 2, figsize=(10, 8))
+    for index, label in enumerate(config.LABEL_COLUMNS):
+        valid = np.isfinite(labels[:, index])
+        truth = labels[valid, index].astype(np.int32)
+        scores = probabilities[valid, index]
+        predicted = (scores >= 0.5).astype(np.int32)
+        roc_axis = roc_axes.flat[index]
+        pr_axis = pr_axes.flat[index]
+        confusion_axis = confusion_axes.flat[index]
+
+        if len(np.unique(truth)) > 1:
+            false_positive_rate, true_positive_rate, _ = roc_curve(truth, scores)
+            precision, recall, _ = precision_recall_curve(truth, scores)
+            roc_axis.plot(false_positive_rate, true_positive_rate, label=f"AUC={roc_auc_score(truth, scores):.3f}")
+            pr_axis.plot(recall, precision, label=f"AP={average_precision_score(truth, scores):.3f}")
+            roc_axis.legend(loc="lower right")
+            pr_axis.legend(loc="lower left")
+        else:
+            roc_axis.text(0.5, 0.5, "Insufficient class variation", ha="center", va="center")
+            pr_axis.text(0.5, 0.5, "Insufficient class variation", ha="center", va="center")
+
+        roc_axis.plot([0, 1], [0, 1], "--", color="gray", linewidth=1)
+        roc_axis.set_title(label)
+        roc_axis.set_xlabel("False positive rate")
+        roc_axis.set_ylabel("True positive rate")
+        roc_axis.grid(alpha=0.25)
+        pr_axis.set_title(label)
+        pr_axis.set_xlabel("Recall")
+        pr_axis.set_ylabel("Precision")
+        pr_axis.grid(alpha=0.25)
+        confusion_axis.imshow(
+            confusion_matrix(truth, predicted, labels=[0, 1]),
+            cmap="Blues",
+        )
+        confusion_axis.set_title(label)
+        confusion_axis.set_xlabel("Predicted label")
+        confusion_axis.set_ylabel("True label")
+        confusion_axis.set_xticks([0, 1])
+        confusion_axis.set_yticks([0, 1])
+
+        matrix = confusion_matrix(truth, predicted, labels=[0, 1])
+        for row in range(2):
+            for column in range(2):
+                confusion_axis.text(column, row, matrix[row, column], ha="center", va="center")
+
+    for figure, filename, title in [
+        (roc_figure, "roc_curves.png", f"{result_stem} ROC curves"),
+        (pr_figure, "precision_recall_curves.png", f"{result_stem} precision-recall curves"),
+        (confusion_figure, "confusion_matrices.png", f"{result_stem} confusion matrices"),
+    ]:
+        figure.suptitle(title)
+        figure.tight_layout()
+        figure.savefig(output_dir / filename, dpi=150)
+        plt.close(figure)
+
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(results, handle, indent=2)
+    print(f"Saved detailed results to {report_path}")
+    print(f"Saved predictions to {predictions_path}")
+    print(f"Saved plots to {output_dir}")
+    return report_path
 
 
 def main():
@@ -313,16 +424,6 @@ def main():
         "xgboost": "XGBoost (Clinical)",
     }
 
-    all_results = {
-        "device": str(device),
-        "num_rows": len(
-            CXRDataset(
-                config.SPLIT_DIR / "test.csv"
-            )
-        ),
-        "models": {},
-    }
-
     # ---------------------------------------------------------
     # Evaluate each selected model
     # ---------------------------------------------------------
@@ -362,15 +463,13 @@ def main():
         result = evaluate(
             labels,
             probabilities,
+            device,
         )
-
-        # Store checkpoint path
+        result["model"] = model_name
         result["checkpoint"] = str(
             checkpoint_path
         )
-
-        # Store results
-        all_results["models"][model_name] = result
+        save_detailed_outputs(model_name, labels, probabilities, result)
 
         # Print summary
         print()
@@ -391,55 +490,6 @@ def main():
             f"  Micro F1: "
             f"{result['micro_f1']:.4f}"
         )
-
-    # ---------------------------------------------------------
-    # Save results
-    # ---------------------------------------------------------
-
-    config.BASELINE_METRICS_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    output_path = (
-        config.BASELINE_METRICS_DIR
-        / "baseline_metrics.json"
-    )
-
-    with open(
-        output_path,
-        "w",
-        encoding="utf-8",
-    ) as handle:
-
-        json.dump(
-            all_results,
-            handle,
-            indent=2,
-        )
-
-    # ---------------------------------------------------------
-    # Print complete JSON
-    # ---------------------------------------------------------
-
-    print()
-    print("=" * 70)
-    print("COMPLETE RESULTS")
-    print("=" * 70)
-
-    print(
-        json.dumps(
-            all_results,
-            indent=2,
-        )
-    )
-
-    print()
-    print(
-        f"Saved baseline metrics to:\n"
-        f"{output_path}"
-    )
-
 
 if __name__ == "__main__":
     main()
