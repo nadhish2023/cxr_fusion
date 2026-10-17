@@ -32,31 +32,37 @@ METRICS_DIR = config.BASELINE_METRICS_DIR
 RESULT_STEMS = {
     "clinical": "mlp",
     "convnext_tiny": "convnext_tiny",
-    "image": "resnet",
+    "resnet": "resnet",
     "densenet": "densenet",
     "efficientnetb3": "efficientnetb3",
     "logistic_regression": "logistic_regression",
-    "random_forest": "random_forest",
+    "randomforest": "randomforest",
     "xgboost": "xgboost",
 }
 
 
-CLASSICAL_CLINICAL_MODELS = ["logistic_regression", "random_forest", "xgboost"]
+CLASSICAL_CLINICAL_MODELS = ["logistic_regression", "randomforest", "xgboost"]
 
 
-def collect_tree_predictions(model_name, checkpoint_path):
+def collect_classical_predictions(model_name, checkpoint_path):
     checkpoint = joblib.load(checkpoint_path)
     dataset = CXRDataset(config.SPLIT_DIR / "test.csv")
     rows = dataset.rows
     features = rows[checkpoint["feature_columns"]].to_numpy(dtype="float32")
-    labels = rows[config.LABEL_COLUMNS].to_numpy(dtype="int32")
-    model = checkpoint["model"]
+    labels = rows[config.LABEL_COLUMNS].to_numpy(dtype="float32")
+    models = checkpoint.get("models")
+    if models is None:
+        models = [checkpoint["model"]]
 
-    if model_name in ["logistic_regression", "random_forest"]:
-        probabilities = model.predict_proba(features)
+    if model_name == "logistic_regression":
+        probabilities = checkpoint["model"].predict_proba(features)
+    elif model_name == "randomforest":
+        probabilities = np.column_stack(
+            [model.predict_proba(features)[:, 1] for model in models]
+        )
     else:
         probabilities = np.column_stack(
-            [estimator.predict_proba(features)[:, 1] for estimator in model]
+            [model.predict_proba(features)[:, 1] for model in models]
         )
 
     return labels, probabilities
@@ -64,7 +70,7 @@ def collect_tree_predictions(model_name, checkpoint_path):
 
 def collect_predictions(model_name, checkpoint_path, device):
     if model_name in CLASSICAL_CLINICAL_MODELS:
-        return collect_tree_predictions(model_name, checkpoint_path)
+        return collect_classical_predictions(model_name, checkpoint_path)
 
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
@@ -76,7 +82,7 @@ def collect_predictions(model_name, checkpoint_path, device):
         num_workers=config.NUM_WORKERS,
     )
 
-    if model_name == "image":
+    if model_name == "resnet":
         model = ResNetBaseline(len(config.LABEL_COLUMNS)).to(device)
 
     elif model_name == "densenet":
@@ -106,7 +112,7 @@ def collect_predictions(model_name, checkpoint_path, device):
     with torch.no_grad():
         for images, tabular, targets, _ in loader:
 
-            if model_name in ["image", "densenet", "efficientnetb3", "convnext_tiny"]:
+            if model_name in ["resnet", "densenet", "efficientnetb3", "convnext_tiny"]:
                 inputs = images.to(device)
             else:
                 inputs = tabular.to(device)
@@ -331,12 +337,12 @@ def main():
     parser.add_argument(
         "--model",
         choices=[
-            "image",
+            "resnet",
             "densenet",
             "efficientnetb3",
             "convnext_tiny",
             "logistic_regression",
-            "random_forest",
+            "randomforest",
             "xgboost",
             "clinical",
             "all",
@@ -363,19 +369,19 @@ def main():
     # Determine which models to evaluate
     if args.model == "all":
         models = [
-            "image",
+            "resnet",
             "densenet",
             "efficientnetb3",
             "convnext_tiny",
             "clinical",
             "logistic_regression",
-            "random_forest",
+            "randomforest",
             "xgboost",
         ]
 
     elif args.model == "image_models":
         models = [
-            "image",
+            "resnet",
             "densenet",
             "efficientnetb3",
             "convnext_tiny",
@@ -385,7 +391,7 @@ def main():
         models = [
             "clinical",
             "logistic_regression",
-            "random_forest",
+            "randomforest",
             "xgboost",
         ]
 
@@ -397,30 +403,30 @@ def main():
     # Model names used internally do not necessarily match
     # checkpoint filenames.
     #
-    # Model name "image" loads "baseline_resnet.pt",
+    # Model name "resnet" loads "baseline_resnet.pt",
     # "densenet" loads "baseline_densenet.pt",
     # "clinical" loads "baseline_mlp.pt".
     # ---------------------------------------------------------
 
     checkpoint_names = {
-        "image": "baseline_resnet.pt",
+        "resnet": "baseline_resnet.pt",
         "densenet": "baseline_densenet.pt",
         "efficientnetb3": "baseline_efficientnetb3.pt",
         "convnext_tiny": "baseline_convnext_tiny.pt",
         "clinical": "baseline_mlp.pt",
         "logistic_regression": "baseline_logistic_regression.joblib",
-        "random_forest": "baseline_random_forest.joblib",
+        "randomforest": "baseline_randomforest.joblib",
         "xgboost": "baseline_xgboost.joblib",
     }
 
     model_descriptions = {
-        "image": "ResNet-50",
+        "resnet": "ResNet-50",
         "densenet": "DenseNet-121",
         "efficientnetb3": "EfficientNetB3",
         "convnext_tiny": "ConvNeXt Tiny",
         "clinical": "MLP (Clinical)",
         "logistic_regression": "Logistic Regression (Clinical)",
-        "random_forest": "Random Forest (Clinical)",
+        "randomforest": "Random Forest (Clinical)",
         "xgboost": "XGBoost (Clinical)",
     }
 

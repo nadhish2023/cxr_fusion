@@ -10,7 +10,7 @@ from baselines.code.baseline_models import ResNetBaseline
 from main_model.code.dataset import CXRDataset
 
 
-BASELINE_DIR = config.CHECKPOINT_DIR / "baselines"
+BASELINE_DIR = config.BASELINE_CHECKPOINT_DIR
 CHECKPOINT_PATH = BASELINE_DIR / "baseline_resnet.pt"
 
 
@@ -29,12 +29,16 @@ def main():
     val_loader = DataLoader(val_set, batch_size=config.BATCH_SIZE, shuffle=False, num_workers=config.NUM_WORKERS, pin_memory=True)
     model = ResNetBaseline(len(config.LABEL_COLUMNS)).to(device)
     labels = torch.tensor(train_set.rows[config.LABEL_COLUMNS].to_numpy(dtype="float32"), device=device)
-    pos_weight = ((len(train_set) - labels.sum(dim=0)) / labels.sum(dim=0).clamp_min(1.0)).clamp(max=10.0)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    valid_labels = torch.isfinite(labels)
+    positive_counts = torch.nan_to_num(labels, nan=0.0).sum(dim=0)
+    negative_counts = (valid_labels & (labels == 0)).sum(dim=0).float()
+    pos_weight = (negative_counts / positive_counts.clamp_min(1.0)).clamp(max=10.0)
+    validation_label_count = int(np.isfinite(val_set.rows[config.LABEL_COLUMNS].to_numpy(dtype="float32")).sum())
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.LEARNING_RATE, weight_decay=config.WEIGHT_DECAY)
     best_val_loss = float("inf")
     patience = 0
     BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"ResNet-50 baseline positive counts: {positive_counts.detach().cpu().tolist()}")
     print(f"ResNet-50 baseline pos_weight: {[round(value, 3) for value in pos_weight.detach().cpu().tolist()]}")
 
     for epoch in range(1, config.EPOCHS + 1):
@@ -43,7 +47,14 @@ def main():
         for images, _, targets, _ in train_loader:
             images, targets = images.to(device), targets.to(device)
             optimizer.zero_grad(set_to_none=True)
-            loss = criterion(model(images), targets)
+            valid = torch.isfinite(targets)
+            loss_values = nn.functional.binary_cross_entropy_with_logits(
+                model(images),
+                torch.nan_to_num(targets, nan=0.0),
+                pos_weight=pos_weight,
+                reduction="none",
+            )
+            loss = loss_values.masked_select(valid).mean()
             loss.backward()
             optimizer.step()
             train_loss += loss.item() * images.size(0)
@@ -52,9 +63,16 @@ def main():
         with torch.no_grad():
             for images, _, targets, _ in val_loader:
                 images, targets = images.to(device), targets.to(device)
-                val_loss += criterion(model(images), targets).item() * images.size(0)
+                valid = torch.isfinite(targets)
+                loss_values = nn.functional.binary_cross_entropy_with_logits(
+                    model(images),
+                    torch.nan_to_num(targets, nan=0.0),
+                    pos_weight=pos_weight,
+                    reduction="none",
+                )
+                val_loss += loss_values.masked_select(valid).sum().item()
         train_loss /= len(train_set)
-        val_loss /= len(val_set)
+        val_loss /= validation_label_count
         print(f"Epoch {epoch:02d}/{config.EPOCHS}: train_loss={train_loss:.4f} val_loss={val_loss:.4f}")
         if val_loss < best_val_loss:
             best_val_loss = val_loss

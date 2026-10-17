@@ -86,20 +86,22 @@ Image baselines require CUDA and use ImageNet-pretrained backbones.
 
 ```powershell
 python -m baselines.code.train_baseline_mlp
-python -m baselines.code.train_baseline_tree --model all
+python -m baselines.code.train_baseline_randomforest
+python -m baselines.code.train_baseline_xgboost
 ```
 
-The classical trainer produces Logistic Regression, Random Forest, and XGBoost checkpoints.
+The clinical baseline trainers produce separate MLP, Random Forest, and XGBoost checkpoints.
 
 ### Evaluate
 
 ```powershell
-python -m baselines.code.evaluate_baselines --model image_models
-python -m baselines.code.evaluate_baselines --model clinical_models
-python -m baselines.code.evaluate_baselines --model all
+python -m baselines.code.evaluate_baselines --model resnet
+python -m baselines.code.evaluate_baselines --model densenet
+python -m baselines.code.evaluate_baselines --model randomforest
+python -m baselines.code.evaluate_baselines --model xgboost
 ```
 
-The complete report is written to `baselines/outputs/metrics/baseline_metrics.json`. Checkpoints are stored under `baselines/outputs/checkpoints/`.
+Each evaluation command writes an individual JSON report, predictions CSV, ROC/precision-recall/confusion plots, and a model-specific output folder under `baselines/outputs/metrics/`. Checkpoints are stored under `baselines/outputs/checkpoints/`.
 
 ### Plot evaluation graphs
 
@@ -122,7 +124,7 @@ The plots are written to `main_model/outputs/metrics/plots/`: ROC curves, precis
 | ConvNeXt Tiny | Image neural baseline | `baselines/outputs/checkpoints/baseline_convnext_tiny.pt` |
 | MLP | Clinical neural baseline | `baselines/outputs/checkpoints/baseline_mlp.pt` |
 | Logistic Regression | Clinical linear baseline | `baselines/outputs/checkpoints/baseline_logistic_regression.joblib` |
-| Random Forest | Clinical tree baseline | `baselines/outputs/checkpoints/baseline_random_forest.joblib` |
+| Random Forest | Clinical ensemble baseline | `baselines/outputs/checkpoints/baseline_randomforest.joblib` |
 | XGBoost | Clinical boosting baseline | `baselines/outputs/checkpoints/baseline_xgboost.joblib` |
 
 ## Project Configuration
